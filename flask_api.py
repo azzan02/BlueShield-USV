@@ -1,8 +1,12 @@
 from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 import datetime
+from flask_cors import CORS
 
 app = Flask(__name__)
+
+# Enable CORS for all routes and origins
+CORS(app)
 
 # Database configuration (SQLite for simplicity)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///sensor_data.db'
@@ -61,25 +65,46 @@ def receive_sensor_data():
     return jsonify({"message": "Data received and stored successfully"}), 201
 
 # Route to retrieve all sensor data
+# @app.route('/api/sensor-data', methods=['GET'])
+# def get_sensor_data():
+#     sensor_data = SensorData.query.all()
+#     result = []
+#     for data in sensor_data:
+#         result.append({
+#             "id": data.id,
+#             "node_id": data.node_id,
+#             "pH": data.ph,
+#             "EC": data.ec,
+#             "TDS": data.tds,
+#             "DO": data.do,
+#             "Lat": data.latitude,
+#             "Lon": data.longitude,
+#             "Alt": data.altitude,
+#             "Speed": data.speed,
+#             "Sat": data.satellites,
+#             "timestamp": data.timestamp
+#         })
+#     return jsonify(result), 200
+
+
 @app.route('/api/sensor-data', methods=['GET'])
 def get_sensor_data():
-    sensor_data = SensorData.query.all()
+    
     result = []
-    for data in sensor_data:
-        result.append({
-            "id": data.id,
-            "node_id": data.node_id,
-            "pH": data.ph,
-            "EC": data.ec,
-            "TDS": data.tds,
-            "DO": data.do,
-            "Lat": data.latitude,
-            "Lon": data.longitude,
-            "Alt": data.altitude,
-            "Speed": data.speed,
-            "Sat": data.satellites,
-            "timestamp": data.timestamp
-        })
+    result.append({
+        "id": 12,
+        "node_id": 12,
+        "pH": 7.2,
+        "EC": 1.5,
+        "TDS": 500,
+        "DO": 6.8,
+        "Lat": 33.684,
+        "Lon": 12,
+        "Alt": 12,
+        "Speed": 12,
+        "Sat": 12,
+        "timestamp": 12
+    })
     return jsonify(result), 200
 
 if __name__ == '__main__':
