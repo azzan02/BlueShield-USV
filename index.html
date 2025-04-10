@@ -1,0 +1,289 @@
+// HTML/JavaScript for a basic web app that connects to MQTT broker
+// This can be saved as index.html or incorporated into your existing web app
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Water Quality Monitoring Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mqtt/4.3.7/mqtt.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        .panel {
+            background-color: #f5f5f5;
+            border-radius: 10px;
+            padding: 15px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h2 {
+            margin-top: 0;
+            color: #333;
+        }
+        .value {
+            font-size: 2em;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        #map {
+            height: 300px;
+            width: 100%;
+            background-color: #eee;
+        }
+        .chart-container {
+            height: 250px;
+        }
+        .connection-status {
+            padding: 10px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+        .connected {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .disconnected {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <h1>Water Quality Monitoring Dashboard</h1>
+    
+    <div id="connectionStatus" class="connection-status disconnected">
+        MQTT Connection: Disconnected
+    </div>
+    
+    <div class="dashboard">
+        <div class="panel">
+            <h2>pH Level</h2>
+            <div id="phValue" class="value">--</div>
+            <div class="chart-container">
+                <canvas id="phChart"></canvas>
+            </div>
+        </div>
+        
+        <div class="panel">
+            <h2>Electrical Conductivity (EC)</h2>
+            <div id="ecValue" class="value">--</div>
+            <div class="chart-container">
+                <canvas id="ecChart"></canvas>
+            </div>
+        </div>
+        
+        <div class="panel">
+            <h2>Total Dissolved Solids (TDS)</h2>
+            <div id="tdsValue" class="value">--</div>
+            <div class="chart-container">
+                <canvas id="tdsChart"></canvas>
+            </div>
+        </div>
+        
+        <div class="panel">
+            <h2>Dissolved Oxygen (DO)</h2>
+            <div id="doValue" class="value">--</div>
+            <div class="chart-container">
+                <canvas id="doChart"></canvas>
+            </div>
+        </div>
+        
+        <div class="panel" style="grid-column: 1 / -1;">
+            <h2>GPS Location</h2>
+            <div id="gpsInfo">No GPS Data Available</div>
+            <div id="map"></div>
+        </div>
+    </div>
+
+    <script>
+        // Create charts
+        const createChart = (elementId, label, color) => {
+            const ctx = document.getElementById(elementId).getContext('2d');
+            return new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [], // Time labels will be added dynamically
+                    datasets: [{
+                        label: label,
+                        data: [],
+                        borderColor: color,
+                        tension: 0.4,
+                        fill: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: false
+                        }
+                    }
+                }
+            });
+        };
+
+        // Initialize charts
+        const phChart = createChart('phChart', 'pH', 'rgba(75, 192, 192, 1)');
+        const ecChart = createChart('ecChart', 'EC (μS/cm)', 'rgba(153, 102, 255, 1)');
+        const tdsChart = createChart('tdsChart', 'TDS (ppm)', 'rgba(255, 159, 64, 1)');
+        const doChart = createChart('doChart', 'DO (mg/L)', 'rgba(54, 162, 235, 1)');
+
+        // Keep track of data points (limit to 20 points)
+        const maxDataPoints = 20;
+        
+        // MQTT Connection
+        const mqttHost = '172.20.10.9';  // e.g., 'broker.hivemq.com' or your IP
+        const mqttPort = 9001;  // For websocket secure, or 8883 for MQTT over TLS
+        
+        // Connect to MQTT broker
+        const connectMQTT = () => {
+            const clientId = 'webClient_' + Math.random().toString(16).substr(2, 8);
+            const connectOptions = {
+                clientId: clientId,
+                clean: true,
+                username: 'Azzan99',  // If authentication is needed
+                password: 'Box379del5@23',  // If authentication is needed
+                protocol: 'ws',     // 'wss' for secure websocket, 'ws' for standard
+                reconnectPeriod: 5000
+            };
+            
+            const client = mqtt.connect(`wss://${mqttHost}:${mqttPort}/mqtt`, connectOptions);
+            
+            client.on('connect', () => {
+                console.log('Connected to MQTT broker');
+                document.getElementById('connectionStatus').className = 'connection-status connected';
+                document.getElementById('connectionStatus').textContent = 'MQTT Connection: Connected';
+                
+                // Subscribe to water sensor data topic
+                client.subscribe('water_sensors/data', (err) => {
+                    if (!err) {
+                        console.log('Subscribed to water_sensors/data');
+                    }
+                });
+            });
+            
+            client.on('error', (error) => {
+                console.error('MQTT connection error:', error);
+                document.getElementById('connectionStatus').className = 'connection-status disconnected';
+                document.getElementById('connectionStatus').textContent = 'MQTT Connection: Error - ' + error.message;
+            });
+            
+            client.on('reconnect', () => {
+                console.log('Attempting to reconnect to MQTT broker');
+                document.getElementById('connectionStatus').className = 'connection-status disconnected';
+                document.getElementById('connectionStatus').textContent = 'MQTT Connection: Reconnecting...';
+            });
+            
+            client.on('message', (topic, message) => {
+                if (topic === 'water_sensors/data') {
+                    try {
+                        // Parse the sensor data from the message
+                        const data = parseSensorData(message.toString());
+                        updateDashboard(data);
+                    } catch (e) {
+                        console.error('Error processing message:', e);
+                    }
+                }
+            });
+            
+            return client;
+        };
+        
+        // Parse the sensor data from CSV-like format
+        const parseSensorData = (message) => {
+            const dataPoints = message.split(',');
+            const data = {};
+            
+            dataPoints.forEach(item => {
+                const [key, value] = item.split(':');
+                if (key && value) {
+                    data[key.trim()] = value.trim();
+                }
+            });
+            
+            return data;
+        };
+        
+        // Update dashboard with new data
+        const updateDashboard = (data) => {
+            const timestamp = new Date().toLocaleTimeString();
+            
+            // Update pH value and chart
+            if (data.pH) {
+                document.getElementById('phValue').textContent = data.pH;
+                updateChart(phChart, timestamp, parseFloat(data.pH));
+            }
+            
+            // Update EC value and chart
+            if (data.EC) {
+                document.getElementById('ecValue').textContent = data.EC;
+                updateChart(ecChart, timestamp, parseFloat(data.EC));
+            }
+            
+            // Update TDS value and chart
+            if (data.TDS) {
+                document.getElementById('tdsValue').textContent = data.TDS;
+                updateChart(tdsChart, timestamp, parseFloat(data.TDS));
+            }
+            
+            // Update DO value and chart
+            if (data.DO) {
+                document.getElementById('doValue').textContent = data.DO;
+                updateChart(doChart, timestamp, parseFloat(data.DO));
+            }
+            
+            // Update GPS information
+            if (data.Lat && data.Lon) {
+                const gpsInfo = `Latitude: ${data.Lat}, Longitude: ${data.Lon}`;
+                document.getElementById('gpsInfo').textContent = gpsInfo;
+                
+                // If you're using a mapping library like Leaflet or Google Maps,
+                // you would update the map here.
+            } else if (data.GPS === 'NoFix') {
+                document.getElementById('gpsInfo').textContent = 'GPS: No Fix Available';
+            }
+            
+            console.log('Dashboard updated with new data:', data);
+        };
+        
+        // Update chart with new data point
+        const updateChart = (chart, label, value) => {
+            // Add new data
+            chart.data.labels.push(label);
+            chart.data.datasets[0].data.push(value);
+            
+            // Remove old data if exceeding max points
+            if (chart.data.labels.length > maxDataPoints) {
+                chart.data.labels.shift();
+                chart.data.datasets[0].data.shift();
+            }
+            
+            // Update chart
+            chart.update();
+        };
+        
+        // Initialize MQTT connection
+        const mqttClient = connectMQTT();
+        
+        // Add map initialization here if using a mapping library
+        // For example with Leaflet:
+        // const initMap = () => {
+        //     const map = L.map('map').setView([0, 0], 2);
+        //     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        //     return map;
+        // };
+        // const map = initMap();
+    </script>
+</body>
+</html>
