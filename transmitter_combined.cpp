@@ -54,11 +54,13 @@ namespace device {
 }
 
 namespace calibration {
-  // MODIFY: Update these values based on your calibration results
-  const float calVoltage = 0.0715;
-  const float calEC = 84.0;
+  // Updated with calibration results
+  const float calVoltage = 0.036774;
+  const float calEC = 84.00;
+  const float kValue = 2284.215576;
+  const float tdsFactor = 0.50;
+  // Calculated slope for backwards compatibility
   const float ecSlope = calEC / calVoltage;
-  const float kValue = 1.0;  // K value of your EC probe
 }
 
 namespace sensor {
@@ -112,12 +114,10 @@ void readTDS() {
   }
   float voltage = voltage_sum / 10;  // Average of 10 readings
   
-  // Improved EC calculation
-  float rawEC = voltage * calibration::ecSlope * calibration::kValue;
-  
-  // Apply temperature compensation
+  // Calculate EC using calibrated kValue and temperature compensation
   float tempCoef = 1.0 + 0.02 * (sensor::waterTemp - 25.0);
-  float compensatedEC = rawEC / tempCoef;
+  float rawEC = voltage * calibration::kValue;
+  float compensatedEC = rawEC * tempCoef;
   
   // Store EC reading in rolling buffer
   sensor::ec_samples[sensor::ec_sample_index] = compensatedEC;
@@ -126,8 +126,8 @@ void readTDS() {
   // Get average EC
   sensor::ec = getAverageEC();
   
-  // Calculate TDS from EC (TDS = EC * 0.5 is a general estimation)
-  sensor::tds = sensor::ec * 0.5;
+  // Calculate TDS from EC using calibrated TDS factor
+  sensor::tds = sensor::ec * calibration::tdsFactor;
   
   Serial.print("Raw ADC: ");
   Serial.print(voltage);
