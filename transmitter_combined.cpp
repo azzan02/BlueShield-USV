@@ -26,12 +26,25 @@ const unsigned long packetInterval = 3000;
 const float pH_COEFFICIENT = -5.7980;  // Coefficient from calibration
 const float pH_OFFSET = 21.3928;       // Offset from calibration
 
+// ----- DO Calibration Parameters -----
+const float DO_RAW_ZERO = 500.38;      // Raw reading at 0% oxygen
+const float DO_RAW_MAX = 2700.0;       // Raw reading at 100% oxygen
+const float DO_CALIB_SLOPE = 0.045462; // Calculated slope
+const float DO_CALIB_INTERCEPT = -22.748; // Calculated intercept
+
 // ----- pH Sensor Variables -----
 #define SAMPLE_SIZE 10  // Number of samples for averaging
 float pH_samples[SAMPLE_SIZE];
 int sample_index = 0;
 unsigned long last_pH_reading = 0;
 const unsigned long pH_interval = 20; // Read pH every 20ms for smoothing
+
+// ----- DO Sensor Variables -----
+#define DO_SAMPLE_SIZE 5  // Number of samples for DO averaging
+float DO_samples[DO_SAMPLE_SIZE];
+int do_sample_index = 0;
+unsigned long last_DO_reading = 0;
+const unsigned long DO_interval = 100; // Read DO every 100ms for smoothing
 
 float readPH(float voltage) {
   // Convert analog voltage to pH using the calibrated equation
@@ -46,6 +59,39 @@ float getAveragePH() {
     sum += pH_samples[i];
   }
   return sum / SAMPLE_SIZE;
+}
+
+// Function to read DO sensor with averaging
+float readDO() {
+  // Read the raw value with multiple samples for stability
+  float raw_sum = 0;
+  for (int i = 0; i < 10; i++) {
+    raw_sum += analogRead(DO_PIN);
+    delay(10);
+  }
+  float raw_value = raw_sum / 10.0;
+  
+  // Calculate DO percentage using calibration equation
+  float do_percent = DO_CALIB_SLOPE * raw_value + DO_CALIB_INTERCEPT;
+  
+  // Clamp values to valid range
+  if (do_percent < 0) do_percent = 0;
+  if (do_percent > 100) do_percent = 100;
+  
+  // Convert from % saturation to mg/L (approximate at 25°C)
+  // At 25°C, 100% saturation is about 8.3 mg/L at sea level
+  float do_mg_l = (do_percent / 100.0) * 8.3;
+  
+  return do_mg_l;
+}
+
+// Average DO readings to reduce noise
+float getAverageDO() {
+  float sum = 0;
+  for (int i = 0; i < DO_SAMPLE_SIZE; i++) {
+    sum += DO_samples[i];
+  }
+  return sum / DO_SAMPLE_SIZE;
 }
 
 // ----- EC/TDS Calibration Constants -----
@@ -153,6 +199,11 @@ void setup() {
     pH_samples[i] = 7.0;  // Neutral pH as default
   }
   
+  // Initialize DO sample array
+  for (int i = 0; i < DO_SAMPLE_SIZE; i++) {
+    DO_samples[i] = 0.0;  // Initialize with zero
+  }
+  
   // Initialize EC sample array
   for (int i = 0; i < sensor::EC_SAMPLE_SIZE; i++) {
     sensor::ec_samples[i] = 0.0;
@@ -198,9 +249,14 @@ void setup() {
   Serial.print("TDS raw analog: ");
   Serial.println(tdsAnalog);
   
+  // Test DO sensor with calibration data
   int doAnalog = analogRead(DO_PIN);
   Serial.print("DO raw analog: ");
   Serial.println(doAnalog);
+  Serial.print("DO calibration points - Zero: ");
+  Serial.print(DO_RAW_ZERO);
+  Serial.print(", Max: ");
+  Serial.println(DO_RAW_MAX);
   
   Serial.println("Setup complete.");
   delay(500);
@@ -221,6 +277,14 @@ void loop() {
     pH_samples[sample_index] = ph;
     sample_index = (sample_index + 1) % SAMPLE_SIZE;
   }
+  
+  // Read DO values regularly for averaging
+  if (millis() - last_DO_reading >= DO_interval) {
+    last_DO_reading = millis();
+    float do_value = readDO();
+    DO_samples[do_sample_index] = do_value;
+    do_sample_index = (do_sample_index + 1) % DO_SAMPLE_SIZE;
+  }
 
   // Send packet at specified interval
   if (millis() - lastPacketTime >= packetInterval) {
@@ -230,12 +294,11 @@ void loop() {
     updateWaterTemp();
     readTDS();
     float pHValue = getAveragePH();
+    float doValue = getAverageDO();
     
-    // Read DO sensor
-    int doAnalog = analogRead(DO_PIN);
-    float doVoltage = doAnalog * (VREF / ADC_RES);
-    // Adjusted DO calculation based on common conversion for DO sensors
-    float doValue = ((doVoltage - 0.4) * 3.0);  // Adjust these values according to your DO sensor calibration
+    // Raw DO value for debugging
+    int doRaw = analogRead(DO_PIN);
+    float doPercent = DO_CALIB_SLOPE * doRaw + DO_CALIB_INTERCEPT;
     
     // Format GPS data
     String gpsData = "";
@@ -261,6 +324,8 @@ void loop() {
     Serial.println("EC: " + String(sensor::ec, 2) + " μS/cm");
     Serial.println("TDS: " + String(sensor::tds, 2) + " ppm");
     Serial.println("Water Temp: " + String(sensor::waterTemp, 2) + "°C");
+    Serial.println("DO Raw: " + String(doRaw));
+    Serial.println("DO Percent: " + String(doPercent, 2) + "%");
     Serial.println("DO: " + String(doValue, 2) + " mg/L");
     if (gps.location.isValid()) {
       Serial.println("GPS Location: " + String(gps.location.lat(), 6) + ", " + String(gps.location.lng(), 6));
