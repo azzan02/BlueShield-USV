@@ -75,16 +75,3 @@ The models were trained on a dataset of water quality parameters and deployed vi
 
 ---
 
-## 🛠️ Tech Stack
-
-| Domain           | Tools / Components                             |
-|------------------|-------------------------------------------------|
-| Microcontroller  | ESP32                                           |
-| Sensors          | pH, EC, TDS, DO, Temperature                    |
-| Communication    | LoRa (433 MHz)                                  |
-| Programming Lang | C++ (Arduino Core), Python (for backend)        |
-| Web Framework    | Flask                                           |
-| ML Models        | Random Forest                                   |
-| Mapping          | GPS + Leaflet.js (Web-based Map Integration)    |
-
----
