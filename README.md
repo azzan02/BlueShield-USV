@@ -74,4 +74,10 @@ The models were trained on a dataset of water quality parameters and deployed vi
 - Data is sent to the **web dashboard** for real-time insights and historical analytics
 
 ---
+## 📸 Images & Demo
 
+### Drone Prototype
+![Drone Prototype](assets/drone.jpeg)
+
+### Web Dashboard UI
+![Dashboard UI](assets/dashboard_ui.png)
