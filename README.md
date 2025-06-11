@@ -80,4 +80,4 @@ The models were trained on a dataset of water quality parameters and deployed vi
 ![Drone Prototype](drone.jpeg)
 
 ### Web Dashboard UI
-![Dashboard UI](ui.jpeg)
+![Dashboard UI](UI.jpeg)
