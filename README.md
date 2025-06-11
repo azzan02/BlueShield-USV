@@ -77,7 +77,7 @@ The models were trained on a dataset of water quality parameters and deployed vi
 ## 📸 Images & Demo
 
 ### Drone Prototype
-![Drone Prototype](assets/drone.jpeg)
+![Drone Prototype](drone.jpeg)
 
 ### Web Dashboard UI
-![Dashboard UI](assets/dashboard_ui.png)
+![Dashboard UI](ui.jpeg)
