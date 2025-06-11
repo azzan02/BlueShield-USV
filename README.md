@@ -81,3 +81,20 @@ The models were trained on a dataset of water quality parameters and deployed vi
 
 ### Web Dashboard UI
 ![Dashboard UI](UI.jpeg)
+
+## 🤝 Contribution & Acknowledgment
+
+This project was developed as a **Final Year Project** by undergraduate students at **NUST**, aimed at applying **embedded engineering and AI** to real-world environmental issues.
+
+---
+
+## 📬 Contact
+
+For questions, collaborations, or insights, feel free to reach out via [LinkedIn](https://www.linkedin.com/in/azzanrauf) or open an issue in the repo.
+
+---
+
+## ⭐ Star This Repo
+
+If you found this project interesting or useful, please consider giving it a ⭐ and check out the [Web Dashboard Repository](https://github.com/azzan02/Water-Quality-Dashboard.git)!
+
